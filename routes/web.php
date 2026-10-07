@@ -1,0 +1,37 @@
+<?php
+
+use App\Http\Controllers\ProfileController;
+use Illuminate\Support\Facades\Route;
+
+Route::get('/', function () {
+    return view('welcome');
+});
+
+Route::middleware('auth')->group(function () {
+    Route::get('/dashboard', function () {
+        return view('dashboard');
+    })->name('dashboard');
+
+    Route::get('/pasien', function () {
+        return view('pasien.index');
+    })->name('pasien.index');
+
+    Route::get('/dokter', function () {
+        return view('dokter.index');
+    })->name('dokter.index');
+
+    Route::get('/pendaftaran', function () {
+        return view('pendaftaran.index');
+    })->name('pendaftaran.index');
+
+    Route::get('/rekam-medis', function () {
+        return view('rekam-medis.index');
+    })->name('rekam-medis.index');
+
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
+
+require __DIR__.'/auth.php';
+
