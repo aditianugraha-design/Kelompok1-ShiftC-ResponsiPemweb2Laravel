@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\PasienController;
+use App\Http\Controllers\PendaftaranController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -19,9 +20,7 @@ Route::middleware('auth')->group(function () {
         return view('dokter.index');
     })->name('dokter.index');
 
-    Route::get('/pendaftaran', function () {
-        return view('pendaftaran.index');
-    })->name('pendaftaran.index');
+    Route::resource('pendaftaran', PendaftaranController::class)->only(['index', 'create', 'store', 'update', 'destroy']);
 
     Route::get('/rekam-medis', function () {
         return view('rekam-medis.index');
