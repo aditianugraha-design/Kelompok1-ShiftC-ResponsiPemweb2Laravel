@@ -33,14 +33,11 @@ class UserSeeder extends Seeder
         Dokter::create([
             'user_id' => $userDokter->id,
             'nama' => 'dr. Budi Santoso',
-            'no_sip' => 'SIP-0001',
+            'nip' => 'STR-0001',
             'spesialisasi' => 'Umum',
-            'no_telp' => '081234567891',
-            'jadwal_praktik' => [
-                'senin' => '08:00-12:00',
-                'rabu' => '08:00-12:00',
-                'jumat' => '14:00-17:00',
-            ],
+            'no_telepon' => '081234567891',
+            'jadwal_praktik' => 'Senin, Rabu & Jumat, 08:00 - 12:00 & 14:00 - 17:00',
+            'status' => 'aktif',
         ]);
 
         $userPasien = User::create([

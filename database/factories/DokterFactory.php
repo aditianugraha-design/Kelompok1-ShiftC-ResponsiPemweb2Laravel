@@ -10,16 +10,18 @@ class DokterFactory extends Factory
     {
         return [
             'nama' => 'dr. ' . $this->faker->name(),
-            'no_sip' => 'SIP-' . $this->faker->unique()->numerify('#####'),
+            'nip' => 'STR-' . $this->faker->unique()->numerify('######'),
             'spesialisasi' => $this->faker->randomElement([
                 'Umum', 'Gigi', 'Anak', 'Kandungan', 'Mata', 'THT',
             ]),
-            'no_telp' => $this->faker->numerify('08##########'),
-            'jadwal_praktik' => [
-                'senin' => '08:00-12:00',
-                'selasa' => '13:00-17:00',
-                'kamis' => '08:00-12:00',
-            ],
+            'no_telepon' => $this->faker->numerify('08##########'),
+            'jadwal_praktik' => $this->faker->randomElement([
+                'Senin - Jumat, 08:00 - 14:00',
+                'Senin, Rabu & Jumat, 08:00 - 12:00',
+                'Selasa & Kamis, 13:00 - 17:00',
+                'Senin - Sabtu, 09:00 - 15:00',
+            ]),
+            'status' => $this->faker->randomElement(['aktif', 'aktif', 'aktif', 'non-aktif']),
         ];
     }
 }

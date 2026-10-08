@@ -11,11 +11,13 @@ class Dokter extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'user_id', 'nama', 'no_sip', 'spesialisasi',
-        'no_telp', 'foto', 'jadwal_praktik',
+        'user_id', 'nama', 'nip', 'spesialisasi',
+        'no_telepon', 'foto', 'jadwal_praktik', 'status',
     ];
 
-    protected $casts = ['jadwal_praktik' => 'array'];
+    protected $attributes = [
+        'status' => 'aktif',
+    ];
 
     public function user() { return $this->belongsTo(User::class); }
     public function pendaftarans() { return $this->hasMany(Pendaftaran::class); }
@@ -24,7 +26,7 @@ class Dokter extends Model
     {
         return $query->where(function ($q) use ($keyword) {
             $q->where('nama', 'like', "%{$keyword}%")
-              ->orWhere('no_sip', 'like', "%{$keyword}%")
+              ->orWhere('nip', 'like', "%{$keyword}%")
               ->orWhere('spesialisasi', 'like', "%{$keyword}%");
         });
     }

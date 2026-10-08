@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\DokterController;
 use App\Http\Controllers\PasienController;
 use App\Http\Controllers\PendaftaranController;
 use App\Http\Controllers\ProfileController;
@@ -16,9 +17,7 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('pasien', PasienController::class)->only(['index', 'create', 'store', 'update', 'destroy']);
 
-    Route::get('/dokter', function () {
-        return view('dokter.index');
-    })->name('dokter.index');
+    Route::resource('dokter', DokterController::class)->only(['index', 'create', 'store', 'edit', 'update', 'destroy']);
 
     Route::resource('pendaftaran', PendaftaranController::class)->only(['index', 'create', 'store', 'update', 'destroy']);
 

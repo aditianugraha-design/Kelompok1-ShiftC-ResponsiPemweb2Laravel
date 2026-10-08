@@ -12,9 +12,10 @@ class DokterResource extends JsonResource
         return [
             'id' => $this->id,
             'nama' => $this->nama,
-            'no_sip' => $this->no_sip,
+            'nip' => $this->nip,
             'spesialisasi' => $this->spesialisasi,
-            'no_telp' => $this->no_telp,
+            'no_telepon' => $this->no_telepon,
+            'status' => $this->status,
             'foto' => $this->foto ? asset('storage/' . $this->foto) : null,
             'jadwal_praktik' => $this->jadwal_praktik,
             'created_at' => $this->created_at?->format('Y-m-d H:i:s'),
