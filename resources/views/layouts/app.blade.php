@@ -57,7 +57,11 @@
 
     {{-- MAIN CONTENT --}}
     <main class="flex-1 p-6">
-        <h1 class="text-2xl font-bold text-gray-800 mb-6">@yield('title', 'Dashboard')</h1>
+        @hasSection('header')
+            @yield('header')
+        @else
+            <h1 class="text-2xl font-bold text-gray-800 mb-6">@yield('title', 'Dashboard')</h1>
+        @endif
         @yield('content')
     </main>
 </div>
