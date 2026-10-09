@@ -15,7 +15,7 @@
 |---|---|---|---|---|---|---|
 | 1 | Aditia Wahyu Nugraha | H1H024014 | Shift A | Shift B | CRUD Fitur Reservasi & Autentikasi | [YouTube/Drive](https://...) |
 | 2 | Dedi Kurniawan | H1H024022 | [Shift Awal] | [Shift Akhir] | [Jobdesk Fitur] | [YouTube/Drive](https://...) |
-| 3 | Wisnu Satya Herlambang | H1H024033 | Shift C | Shift C | [Jobdesk Fitur] | [YouTube/Drive](https://...) |
+| 3 | Wisnu Satya Herlambang | H1H024033 | Shift C | Shift C | Modul Dokter & Pasien (Controller, Migration, Views Profil Pasien, dan Feature Testing) | [YouTube/Drive](https://...) |
 | 4 | Alfian Iskandar Zulkarnain | H1H024034 | [Shift Awal] | [Shift Akhir] | [Jobdesk Fitur] | [YouTube/Drive](https://...) |
 
 ---
