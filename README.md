@@ -1,5 +1,5 @@
-# [Judul Web]
-> [Subjudul / Tagline Singkat Web]
+# Sistem Pendaftaran Pasien Klinik
+> Aplikasi Manajemen dan Pendaftaran Pasien Klinik Berbasis Web Menggunakan Laravel
 
 ---
 
@@ -21,7 +21,7 @@
 ---
 
 ## 📖 Deskripsi Aplikasi
-[Deskripsi singkat latar belakang, tujuan aplikasi, target pengguna, dan problem yang diselesaikan.]
+Sistem Pendaftaran Pasien Klinik adalah platform berbasis web yang dirancang untuk mempermudah operasional dan manajemen layanan kesehatan di klinik. Aplikasi ini memfasilitasi pendataan dokter, pendaftaran dan pengisian profil pasien, serta pengelolaan rekam medis dan reservasi jadwal berobat secara efisien dan terstruktur.
 
 ---
 
@@ -34,13 +34,22 @@
 - **Library / Package:** [Contoh: Laravel Breeze, DomPDF, Filament, dll.]
 
 ### 2. Fitur Utama & Modul
-- **Autentikasi & Otorisasi:** [Role admin, user, middleware guard]
-- **[Modul 1]:** [CRUD data, validasi, upload file]
-- **[Modul 2]:** [Fitur transaksi, reporting, notifikasi]
+- **Autentikasi & Otorisasi:** Sistem login, registrasi, serta manajemen peran (Role & Permission) untuk Admin, Dokter, dan Pasien.
+- **Modul Dokter:** 
+  - Pengelolaan data dokter (CRUD).
+  - Skema migrasi database kustom untuk informasi dokter.
+  - Tampilan daftar dan detail dokter (`resources/views/dokter/index.blade.php`).
+  - Pengujian otomatis fungsi modul dokter (`DokterManagementTest.php`).
+- **Modul Pasien:**
+  - Antarmuka profil pasien lengkap (`profile`, `complete-profile`, `edit`, `show`).
+  - Pengujian otomatis alur pengelolaan data pasien (`PasienManagementTest.php`).
+- **[Modul Lainnya]:** [Reservasi, Rekam Medis, dll.]
 
 ### 3. Skema Data Singkat
-- `users` (1 : N) `[tabel_terkait]`
-- `[tabel_a]` (M : N) `[tabel_b]`
+- `users` (1 : 1) `dokters`
+- `users` (1 : 1) `pasiens`
+- `pasiens` (1 : N) `pendaftarans`
+- `dokters` (1 : N) `pendaftarans`
 
 ---
 
