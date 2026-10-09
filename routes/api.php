@@ -23,6 +23,11 @@ Route::name('api.')->group(function () {
             Route::get('/me', [AuthController::class, 'me'])->name('me');
         });
 
+        // ==================== PASIEN ENDPOINTS (PROFIL SENDIRI) ====================
+        // Didefinisikan sebelum apiResource agar /pasien/me tidak tertangkap /pasien/{pasien}
+        Route::get('/pasien/me', [PasienController::class, 'myProfile'])->name('pasien.me');
+        Route::put('/pasien/me', [PasienController::class, 'updateMyProfile'])->name('pasien.update-my-profile');
+
         // ==================== DOKTER ENDPOINTS ====================
         // Semua role terautentikasi dapat membaca data dokter
         Route::get('/dokter', [DokterController::class, 'index'])->name('dokter.index');

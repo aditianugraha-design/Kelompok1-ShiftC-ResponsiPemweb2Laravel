@@ -69,9 +69,18 @@
                 {{-- Pasien: Hanya Admin (Master Data Pasien) --}}
                 @if(auth()->check() && (auth()->user()->role === 'admin' || auth()->user()->hasRole('admin')))
                 <a href="{{ route('pasien.index') }}"
-                   class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors {{ request()->routeIs('pasien.*') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-gray-700 hover:bg-gray-100' }}">
+                   class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors {{ request()->routeIs('pasien.index', 'pasien.create', 'pasien.show', 'pasien.edit') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-gray-700 hover:bg-gray-100' }}">
                     <span>👥</span>
                     <span>Data Pasien</span>
+                </a>
+                @endif
+
+                {{-- Profil Pasien: Hanya Pasien --}}
+                @if(auth()->check() && auth()->user()->role === 'pasien')
+                <a href="{{ route('pasien.profile') }}"
+                   class="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors {{ request()->routeIs('pasien.profile', 'pasien.complete-profile') ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20' : 'text-gray-700 hover:bg-gray-100' }}">
+                    <span>👤</span>
+                    <span>Profil Pasien</span>
                 </a>
                 @endif
 

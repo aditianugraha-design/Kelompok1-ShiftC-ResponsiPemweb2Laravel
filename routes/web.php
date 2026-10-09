@@ -33,7 +33,23 @@ Route::middleware('auth')->group(function () {
     // ==========================================
     // MODUL PASIEN (Disiapkan untuk Anggota 2)
     // ==========================================
-    Route::resource('pasien', PasienController::class)->only(['index', 'create', 'store', 'update', 'destroy']);
+    // Data pasien & profil (semua role terautentikasi)
+    Route::get('/pasien', [PasienController::class, 'index'])->name('pasien.index');
+    Route::get('/pasien/profil', [PasienController::class, 'profile'])->name('pasien.profile');
+    Route::get('/pasien/lengkapi-profil', [PasienController::class, 'completeProfile'])->name('pasien.complete-profile');
+    Route::post('/pasien/lengkapi-profil', [PasienController::class, 'storeCompleteProfile'])->name('pasien.store-complete-profile');
+
+    // HANYA ADMIN yang dapat menambah, mengubah, dan menghapus data pasien
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/pasien/create', [PasienController::class, 'create'])->name('pasien.create');
+        Route::post('/pasien', [PasienController::class, 'store'])->name('pasien.store');
+        Route::delete('/pasien/{pasien}', [PasienController::class, 'destroy'])->name('pasien.destroy');
+    });
+
+    // Detail, edit, dan update (admin atau pemilik data)
+    Route::get('/pasien/{pasien}', [PasienController::class, 'show'])->name('pasien.show');
+    Route::get('/pasien/{pasien}/edit', [PasienController::class, 'edit'])->name('pasien.edit');
+    Route::put('/pasien/{pasien}', [PasienController::class, 'update'])->name('pasien.update');
 
     // ==========================================
     // MODUL PENDAFTARAN (Disiapkan untuk Anggota 3)
