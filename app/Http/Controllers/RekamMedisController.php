@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreRekamMedisRequest;
+use App\Http\Requests\UpdateRekamMedisRequest;
 use App\Models\Dokter;
 use App\Models\Pasien;
 use App\Models\Pendaftaran;
@@ -57,18 +59,11 @@ class RekamMedisController extends Controller
         return view('rekam-medis.create', compact('pendaftarans', 'selectedPendaftaran'));
     }
 
-    public function store(Request $request)
+    public function store(StoreRekamMedisRequest $request)
     {
-        $validated = $request->validate([
-            'pendaftaran_id' => 'required|exists:pendaftarans,id|unique:rekam_medis,pendaftaran_id',
-            'diagnosa' => 'required|string',
-            'tindakan' => 'nullable|string',
-            'resep' => 'nullable|string',
-            'catatan' => 'nullable|string',
-        ]);
+        DB::transaction(function () use ($request) {
+            $rekamMedis = RekamMedis::create($request->validated());
 
-        DB::transaction(function () use ($validated) {
-            $rekamMedis = RekamMedis::create($validated);
             // Business process: update status pendaftaran jadi selesai
             $rekamMedis->pendaftaran->update(['status' => 'selesai']);
         });
@@ -89,16 +84,9 @@ class RekamMedisController extends Controller
         return view('rekam-medis.edit', compact('rekamMedis'));
     }
 
-    public function update(Request $request, RekamMedis $rekamMedis)
+    public function update(UpdateRekamMedisRequest $request, RekamMedis $rekamMedis)
     {
-        $validated = $request->validate([
-            'diagnosa' => 'required|string',
-            'tindakan' => 'nullable|string',
-            'resep' => 'nullable|string',
-            'catatan' => 'nullable|string',
-        ]);
-
-        $rekamMedis->update($validated);
+        $rekamMedis->update($request->validated());
 
         return redirect()->route('rekam-medis.show', $rekamMedis)
             ->with('success', 'Rekam medis berhasil diperbarui.');
@@ -107,6 +95,7 @@ class RekamMedisController extends Controller
     public function destroy(RekamMedis $rekamMedis)
     {
         DB::transaction(function () use ($rekamMedis) {
+            // Balikin status pendaftaran ke diproses
             $rekamMedis->pendaftaran->update(['status' => 'diproses']);
             $rekamMedis->delete();
         });
