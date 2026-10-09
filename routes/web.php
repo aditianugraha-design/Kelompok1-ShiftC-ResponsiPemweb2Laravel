@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\DokterController;
+use App\Http\Controllers\PasienController;
+use App\Http\Controllers\PendaftaranController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RekamMedisController;
 use Illuminate\Support\Facades\Route;
@@ -60,14 +63,51 @@ Route::middleware('auth')->group(function () {
         return view('dashboard', compact('user', 'stats', 'recentPendaftaran'));
     })->name('dashboard');
 
-    // Pasien
-    Route::get('/pasien', fn() => view('pasien.index'))->name('pasien.index');
+    // ==========================================
+    // MODUL DOKTER
+    // ==========================================
+    Route::get('/dokter', [DokterController::class, 'index'])->name('dokter.index');
 
-    // Dokter
-    Route::get('/dokter', fn() => view('dokter.index'))->name('dokter.index');
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/dokter/create', [DokterController::class, 'create'])->name('dokter.create');
+        Route::post('/dokter', [DokterController::class, 'store'])->name('dokter.store');
+        Route::get('/dokter/{dokter}/edit', [DokterController::class, 'edit'])->name('dokter.edit');
+        Route::put('/dokter/{dokter}', [DokterController::class, 'update'])->name('dokter.update');
+        Route::delete('/dokter/{dokter}', [DokterController::class, 'destroy'])->name('dokter.destroy');
+    });
 
-    // Pendaftaran
-    Route::get('/pendaftaran', fn() => view('pendaftaran.index'))->name('pendaftaran.index');
+    // ==========================================
+    // MODUL PASIEN
+    // ==========================================
+    Route::get('/pasien', [PasienController::class, 'index'])->name('pasien.index');
+    Route::get('/pasien/profil', [PasienController::class, 'profile'])->name('pasien.profile');
+    Route::get('/pasien/lengkapi-profil', [PasienController::class, 'completeProfile'])->name('pasien.complete-profile');
+    Route::post('/pasien/lengkapi-profil', [PasienController::class, 'storeCompleteProfile'])->name('pasien.store-complete-profile');
+
+    Route::middleware('role:admin')->group(function () {
+        Route::get('/pasien/create', [PasienController::class, 'create'])->name('pasien.create');
+        Route::post('/pasien', [PasienController::class, 'store'])->name('pasien.store');
+        Route::delete('/pasien/{pasien}', [PasienController::class, 'destroy'])->name('pasien.destroy');
+    });
+
+    Route::get('/pasien/{pasien}', [PasienController::class, 'show'])->name('pasien.show');
+    Route::get('/pasien/{pasien}/edit', [PasienController::class, 'edit'])->name('pasien.edit');
+    Route::put('/pasien/{pasien}', [PasienController::class, 'update'])->name('pasien.update');
+
+    // ==========================================
+    // MODUL PENDAFTARAN
+    // ==========================================
+    Route::get('/pendaftaran', [PendaftaranController::class, 'index'])->name('pendaftaran.index');
+    Route::get('/pendaftaran/create', [PendaftaranController::class, 'create'])->name('pendaftaran.create');
+    Route::post('/pendaftaran', [PendaftaranController::class, 'store'])->name('pendaftaran.store');
+
+    Route::middleware('role:admin|dokter')->group(function () {
+        Route::put('/pendaftaran/{pendaftaran}', [PendaftaranController::class, 'update'])->name('pendaftaran.update');
+    });
+
+    Route::middleware('role:admin')->group(function () {
+        Route::delete('/pendaftaran/{pendaftaran}', [PendaftaranController::class, 'destroy'])->name('pendaftaran.destroy');
+    });
 
     // Rekam Medis (pakai Resource Controller)
     Route::resource('rekam-medis', RekamMedisController::class);
