@@ -14,7 +14,7 @@ Route::name('api.')->group(function () {
         Route::post('/login', [AuthController::class, 'login'])->name('login');
     });
 
-    // ==================== PROTECTED ROUTES ====================
+    // ==================== PROTECTED ROUTES (SANCTUM) ====================
     Route::middleware('auth:sanctum')->group(function () {
 
         // Auth
@@ -23,11 +23,12 @@ Route::name('api.')->group(function () {
             Route::get('/me', [AuthController::class, 'me'])->name('me');
         });
 
-        // Semua role bisa lihat daftar dokter
+        // ==================== DOKTER ENDPOINTS ====================
+        // Semua role terautentikasi dapat membaca data dokter
         Route::get('/dokter', [DokterController::class, 'index'])->name('dokter.index');
         Route::get('/dokter/{dokter}', [DokterController::class, 'show'])->name('dokter.show');
 
-        // Admin only
+        // ==================== ADMIN ONLY ENDPOINTS ====================
         Route::middleware('role:admin')->group(function () {
             Route::apiResource('pasien', PasienController::class);
             Route::post('/dokter', [DokterController::class, 'store'])->name('dokter.store');
@@ -35,9 +36,19 @@ Route::name('api.')->group(function () {
             Route::delete('/dokter/{dokter}', [DokterController::class, 'destroy'])->name('dokter.destroy');
         });
 
-        // Semua role terautentikasi bisa akses pendaftaran & rekam medis
+        // ==================== PENDAFTARAN ENDPOINTS ====================
         Route::apiResource('pendaftaran', PendaftaranController::class);
-        Route::apiResource('rekam-medis', RekamMedisController::class);
+
+        // ==================== REKAM MEDIS ENDPOINTS ====================
+        // Baca data rekam medis
+        Route::get('/rekam-medis', [RekamMedisController::class, 'index'])->name('rekam-medis.index');
+        Route::get('/rekam-medis/{rekam_medi}', [RekamMedisController::class, 'show'])->name('rekam-medis.show');
+
+        // Hanya Dokter & Admin yang dapat membuat, mengubah, atau menghapus rekam medis
+        Route::middleware('role:admin|dokter')->group(function () {
+            Route::post('/rekam-medis', [RekamMedisController::class, 'store'])->name('rekam-medis.store');
+            Route::put('/rekam-medis/{rekam_medi}', [RekamMedisController::class, 'update'])->name('rekam-medis.update');
+            Route::delete('/rekam-medis/{rekam_medi}', [RekamMedisController::class, 'destroy'])->name('rekam-medis.destroy');
+        });
     });
 });
-

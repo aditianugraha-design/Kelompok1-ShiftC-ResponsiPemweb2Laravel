@@ -14,13 +14,24 @@
         <p class="text-sm text-gray-500 mt-1">Kelola identitas, spesialisasi, dan jadwal praktik seluruh dokter klinik</p>
     </div>
     <div class="flex items-center gap-3">
-        <a href="{{ route('dokter.create') }}"
-           class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold rounded-xl shadow-sm shadow-blue-500/20 hover:shadow-md hover:shadow-blue-500/30 transition-all duration-150">
+        @if(auth()->check() && (auth()->user()->role === 'admin' || auth()->user()->hasRole('admin')))
+        <button type="button"
+                @click="showCreateModal = true"
+                class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold rounded-xl shadow-sm shadow-blue-500/20 hover:shadow-md hover:shadow-blue-500/30 transition-all duration-150">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
             </svg>
             <span>Tambah Dokter Baru</span>
+        </button>
+        @elseif(auth()->check() && auth()->user()->role === 'pasien')
+        <a href="{{ route('pendaftaran.create') }}"
+           class="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold rounded-xl shadow-sm shadow-blue-500/20 hover:shadow-md hover:shadow-blue-500/30 transition-all duration-150">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+            <span>Buat Janji Kunjungan</span>
         </a>
+        @endif
     </div>
 </div>
 @endsection
@@ -333,7 +344,7 @@
                         {{-- Aksi --}}
                         <td class="py-4 px-4 text-center whitespace-nowrap">
                             <div class="flex items-center justify-center gap-1.5">
-                                {{-- Detail --}}
+                                {{-- Detail: Semua Role --}}
                                 <button type="button"
                                         @click="openDetailModal({{ json_encode($dokter) }})"
                                         class="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
@@ -344,25 +355,40 @@
                                     </svg>
                                 </button>
 
-                                {{-- Edit --}}
-                                <button type="button"
-                                        @click="openEditModal({{ json_encode($dokter) }})"
-                                        class="p-2 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition-colors"
-                                        title="Ubah Data Dokter">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                    </svg>
-                                </button>
+                                {{-- Aksi Khusus Admin: Edit & Hapus --}}
+                                @if(auth()->check() && (auth()->user()->role === 'admin' || auth()->user()->hasRole('admin')))
+                                    {{-- Edit --}}
+                                    <button type="button"
+                                            @click="openEditModal({{ json_encode($dokter) }})"
+                                            class="p-2 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition-colors"
+                                            title="Ubah Data Dokter">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                        </svg>
+                                    </button>
 
-                                {{-- Hapus --}}
-                                <button type="button"
-                                        @click="openDeleteModal({{ json_encode($dokter) }})"
-                                        class="p-2 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition-colors"
-                                        title="Hapus Dokter">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                                    </svg>
-                                </button>
+                                    {{-- Hapus --}}
+                                    <button type="button"
+                                            @click="openDeleteModal({{ json_encode($dokter) }})"
+                                            class="p-2 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg transition-colors"
+                                            title="Hapus Dokter">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                        </svg>
+                                    </button>
+                                @endif
+
+                                {{-- Aksi Pasien: Tombol Cepat Daftar Janji Temu --}}
+                                @if(auth()->check() && auth()->user()->role === 'pasien')
+                                    <a href="{{ route('pendaftaran.create') }}"
+                                       class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition-colors"
+                                       title="Daftar ke dokter ini">
+                                        <span>Daftar</span>
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                        </svg>
+                                    </a>
+                                @endif
                             </div>
                         </td>
                     </tr>

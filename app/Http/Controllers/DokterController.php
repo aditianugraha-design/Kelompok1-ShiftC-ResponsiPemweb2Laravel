@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreDokterRequest;
+use App\Http\Requests\UpdateDokterRequest;
 use App\Models\Dokter;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\Storage;
 
 class DokterController extends Controller
 {
@@ -15,55 +17,59 @@ class DokterController extends Controller
 
     public function create(Request $request)
     {
+        $this->authorizeAdmin();
+
         return view('dokter.index', array_merge($this->viewData($request), [
             'openCreate' => true,
         ]));
     }
 
-    public function store(Request $request)
+    public function store(StoreDokterRequest $request)
     {
-        $data = $request->validate([
-            'nama' => 'required|string|max:255',
-            'nip' => ['nullable', 'string', 'max:50', Rule::unique('dokters', 'nip')],
-            'spesialisasi' => 'required|string|max:100',
-            'no_telepon' => 'required|string|max:15',
-            'jadwal_praktik' => 'nullable|string|max:255',
-            'status' => 'required|in:aktif,non-aktif',
-        ]);
+        $data = $request->validated();
+        $data['status'] = $data['status'] ?? 'aktif';
 
-        Dokter::create($data);
+        $dokter = Dokter::create($data);
 
-        return redirect()->route('dokter.index')->with('success', 'Dokter berhasil ditambahkan.');
+        return redirect()->route('dokter.index')->with('success', "Dokter {$dokter->nama} berhasil ditambahkan.");
     }
 
     public function edit(Request $request, Dokter $dokter)
     {
+        $this->authorizeAdmin();
+
         return view('dokter.index', array_merge($this->viewData($request), [
             'openEdit' => $dokter,
         ]));
     }
 
-    public function update(Request $request, Dokter $dokter)
+    public function update(UpdateDokterRequest $request, Dokter $dokter)
     {
-        $data = $request->validate([
-            'nama' => 'required|string|max:255',
-            'nip' => ['nullable', 'string', 'max:50', Rule::unique('dokters', 'nip')->ignore($dokter->id)],
-            'spesialisasi' => 'required|string|max:100',
-            'no_telepon' => 'required|string|max:15',
-            'jadwal_praktik' => 'nullable|string|max:255',
-            'status' => 'required|in:aktif,non-aktif',
-        ]);
-
+        $data = $request->validated();
         $dokter->update($data);
 
-        return redirect()->route('dokter.index')->with('success', 'Data dokter berhasil diperbarui.');
+        return redirect()->route('dokter.index')->with('success', "Data dokter {$dokter->nama} berhasil diperbarui.");
     }
 
     public function destroy(Dokter $dokter)
     {
+        $this->authorizeAdmin();
+
+        $nama = $dokter->nama;
         $dokter->delete();
 
-        return redirect()->route('dokter.index')->with('success', 'Dokter berhasil dihapus.');
+        return redirect()->route('dokter.index')->with('success', "Data dokter {$nama} berhasil dihapus.");
+    }
+
+    /**
+     * Pastikan pengguna saat ini memiliki hak akses Administrator.
+     */
+    protected function authorizeAdmin(): void
+    {
+        $user = auth()->user();
+        if (! $user || (! $user->hasRole('admin') && $user->role !== 'admin')) {
+            abort(403, 'Aksi ini hanya dapat dilakukan oleh Administrator.');
+        }
     }
 
     /**
