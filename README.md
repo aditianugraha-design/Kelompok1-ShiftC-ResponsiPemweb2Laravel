@@ -14,7 +14,7 @@
 | No | Nama Lengkap | NIM | Shift Awal | Shift Akhir | Jobdesk / Kontribusi | Link Video Penjelasan |
 |---|---|---|---|---|---|---|
 | 1 | Aditia Wahyu Nugraha | H1H024014 | Shift A | Shift C | CRUD Fitur Reservasi & Autentikasi, API POST, Fitur Rekam Medis| [YouTube/Drive](https://youtu.be/obqoJLyqhE8) |
-| 2 | Dedi Kurniawan | H1H024022 | [Shift Awal] | [Shift Akhir] | [Jobdesk Fitur] | [YouTube/Drive](https://...) |
+| 2 | Dedi Kurniawan | H1H024022 | Shift A | Shift C | Pendaftaran Pasien] | [YouTube]() |
 | 3 | Wisnu Satya Herlambang | H1H024033 | Shift C | Shift C | Modul Dokter & Pasien (Controller, Migration, Views Profil Pasien, dan Feature Testing) | [YouTube](https://youtu.be/sMBWM1Yw0eU) |
 | 4 | Alfian Iskandar Zulkarnain | H1H024034 | [Shift Awal] | [Shift Akhir] | [Jobdesk Fitur] | [YouTube/Drive](https://...) |
 
