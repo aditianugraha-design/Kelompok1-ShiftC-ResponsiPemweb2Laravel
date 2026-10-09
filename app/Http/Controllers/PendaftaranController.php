@@ -2,26 +2,43 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StorePendaftaranRequest;
+use App\Http\Requests\UpdatePendaftaranRequest;
 use App\Models\Dokter;
 use App\Models\Pasien;
 use App\Models\Pendaftaran;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class PendaftaranController extends Controller
 {
     public function index(Request $request)
     {
+        $user = auth()->user();
+
         $query = Pendaftaran::with(['pasien', 'dokter', 'rekamMedis']);
 
-        // Jika user adalah pasien dan memiliki data pasien terkait, tampilkan riwayat pendaftarannya
-        // atau jika tidak, tampilkan seluruh pendaftaran (misal untuk admin/dokter/staff)
-        $user = auth()->user();
-        if ($user && $user->role === 'pasien' && $user->pasien) {
-            // Bisa difilter per pasien jika diinginkan, namun jika ingin melihat pendaftaran miliknya
-            // $query->where('pasien_id', $user->pasien->id);
-            // Tapi agar pengguna bisa melihat data contoh responsi jika belum terhubung, kita biarkan fleksibel:
+        // ===== OTORISASI BERBASIS ROLE =====
+        if ($user->isPasien()) {
+            // Pasien hanya melihat riwayat pendaftarannya sendiri
+            if ($user->pasien) {
+                $query->where('pasien_id', $user->pasien->id);
+            } else {
+                // Belum punya data pasien, tampilkan kosong
+                $query->whereRaw('1 = 0');
+            }
+        } elseif ($user->isDokter()) {
+            // Dokter melihat antrean pasien yang mendaftar ke dirinya (hari ini)
+            if ($user->dokter) {
+                $query->where('dokter_id', $user->dokter->id);
+                // Default tampilkan hari ini jika tidak ada filter tanggal
+                if (!$request->filled('tgl_kunjungan')) {
+                    $query->whereDate('tgl_kunjungan', today());
+                }
+            } else {
+                $query->whereRaw('1 = 0');
+            }
         }
+        // Admin: tidak ada batasan tambahan — tampilkan semua
 
         // Search
         if ($request->filled('search')) {
@@ -45,8 +62,8 @@ class PendaftaranController extends Controller
             $query->where('status', $request->status);
         }
 
-        // Filter Dokter
-        if ($request->filled('dokter_id')) {
+        // Filter Dokter (hanya untuk Admin)
+        if ($request->filled('dokter_id') && ($user->isAdmin())) {
             $query->where('dokter_id', $request->dokter_id);
         }
 
@@ -57,16 +74,23 @@ class PendaftaranController extends Controller
 
         $pendaftarans = $query->latest('tgl_kunjungan')->latest('id')->paginate(10)->withQueryString();
 
-        // Statistik Counter
-        $total = Pendaftaran::count();
-        $totalMenunggu = Pendaftaran::where('status', 'menunggu')->count();
-        $totalDiproses = Pendaftaran::where('status', 'diproses')->count();
-        $totalSelesai = Pendaftaran::where('status', 'selesai')->count();
-        $totalBatal = Pendaftaran::where('status', 'batal')->count();
+        // Statistik Counter (sesuaikan scope)
+        $statsQuery = Pendaftaran::query();
+        if ($user->isPasien() && $user->pasien) {
+            $statsQuery->where('pasien_id', $user->pasien->id);
+        } elseif ($user->isDokter() && $user->dokter) {
+            $statsQuery->where('dokter_id', $user->dokter->id)->whereDate('tgl_kunjungan', today());
+        }
 
-        // Data untuk Dropdown Modal & Filter
-        $dokters = Dokter::orderBy('nama', 'asc')->get();
-        $pasiens = Pasien::orderBy('nama', 'asc')->get();
+        $total          = (clone $statsQuery)->count();
+        $totalMenunggu  = (clone $statsQuery)->where('status', 'menunggu')->count();
+        $totalDiproses  = (clone $statsQuery)->where('status', 'diproses')->count();
+        $totalSelesai   = (clone $statsQuery)->where('status', 'selesai')->count();
+        $totalBatal     = (clone $statsQuery)->where('status', 'batal')->count();
+
+        // Data untuk Dropdown (hanya dibutuhkan Admin)
+        $dokters = $user->isAdmin() ? Dokter::orderBy('nama', 'asc')->get() : collect();
+        $pasiens = $user->isAdmin() ? Pasien::orderBy('nama', 'asc')->get() : collect();
 
         return view('pendaftaran.index', compact(
             'pendaftarans',
@@ -82,28 +106,26 @@ class PendaftaranController extends Controller
 
     public function create()
     {
-        $dokters = Dokter::orderBy('nama', 'asc')->get();
-        $pasiens = Pasien::orderBy('nama', 'asc')->get();
+        $user = auth()->user();
 
-        return view('pendaftaran.create', compact('dokters', 'pasiens'));
+        // Pasien: cek apakah sudah memiliki profil pasien
+        if ($user->isPasien() && !$user->pasien) {
+            return redirect()->route('pasien.complete-profile')
+                ->with('info', 'Lengkapi data profil pasien Anda terlebih dahulu sebelum membuat pendaftaran.');
+        }
+
+        $dokters = Dokter::where('status', 'aktif')->orderBy('nama', 'asc')->get();
+
+        // Admin bisa pilih pasien mana saja; pasien otomatis dirinya sendiri
+        $pasiens = $user->isAdmin() ? Pasien::orderBy('nama', 'asc')->get() : collect();
+        $pasienSelf = $user->isPasien() ? $user->pasien : null;
+
+        return view('pendaftaran.create', compact('dokters', 'pasiens', 'pasienSelf'));
     }
 
-    public function store(Request $request)
+    public function store(StorePendaftaranRequest $request)
     {
-        $validated = $request->validate([
-            'pasien_id' => 'required|exists:pasiens,id',
-            'dokter_id' => 'required|exists:dokters,id',
-            'tgl_kunjungan' => 'required|date',
-            'jam_kunjungan' => 'required',
-            'keluhan' => 'required|string|max:1000',
-        ], [
-            'pasien_id.required' => 'Pilih pasien yang akan didaftarkan.',
-            'dokter_id.required' => 'Pilih dokter pemeriksa.',
-            'tgl_kunjungan.required' => 'Tanggal kunjungan wajib diisi.',
-            'jam_kunjungan.required' => 'Jam kunjungan wajib ditentukan.',
-            'keluhan.required' => 'Keluhan utama pasien wajib diisi.',
-        ]);
-
+        $validated = $request->validated();
         $validated['kode_daftar'] = Pendaftaran::generateKodeDaftar();
         $validated['status'] = 'menunggu';
 
@@ -113,20 +135,9 @@ class PendaftaranController extends Controller
             ->with('success', "Pendaftaran berhasil dibuat dengan Kode: {$pendaftaran->kode_daftar}.");
     }
 
-    public function update(Request $request, Pendaftaran $pendaftaran)
+    public function update(UpdatePendaftaranRequest $request, Pendaftaran $pendaftaran)
     {
-        $validated = $request->validate([
-            'status' => ['required', Rule::in(['menunggu', 'diproses', 'selesai', 'batal'])],
-            'dokter_id' => 'sometimes|required|exists:dokters,id',
-            'tgl_kunjungan' => 'sometimes|required|date',
-            'jam_kunjungan' => 'sometimes|required',
-            'keluhan' => 'sometimes|required|string|max:1000',
-        ], [
-            'status.in' => 'Status pendaftaran tidak valid.',
-            'dokter_id.exists' => 'Dokter yang dipilih tidak ditemukan.',
-        ]);
-
-        $pendaftaran->update($validated);
+        $pendaftaran->update($request->validated());
 
         return redirect()->route('pendaftaran.index')
             ->with('success', "Pendaftaran {$pendaftaran->kode_daftar} berhasil diperbarui.");
@@ -134,6 +145,13 @@ class PendaftaranController extends Controller
 
     public function destroy(Pendaftaran $pendaftaran)
     {
+        $user = auth()->user();
+
+        // Hanya admin yang bisa menghapus pendaftaran
+        if (!$user->isAdmin()) {
+            abort(403, 'Anda tidak memiliki izin untuk menghapus data pendaftaran.');
+        }
+
         $kode = $pendaftaran->kode_daftar;
         $pendaftaran->delete();
 

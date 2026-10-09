@@ -42,7 +42,21 @@ Route::name('api.')->group(function () {
         });
 
         // ==================== PENDAFTARAN ENDPOINTS ====================
-        Route::apiResource('pendaftaran', PendaftaranController::class);
+        // Semua role terautentikasi: baca & buat pendaftaran
+        Route::get('/pendaftaran', [PendaftaranController::class, 'index'])->name('pendaftaran.index');
+        Route::get('/pendaftaran/{pendaftaran}', [PendaftaranController::class, 'show'])->name('pendaftaran.show');
+        Route::post('/pendaftaran', [PendaftaranController::class, 'store'])->name('pendaftaran.store');
+
+        // Admin & Dokter: perbarui status pendaftaran
+        Route::middleware('role:admin|dokter')->group(function () {
+            Route::put('/pendaftaran/{pendaftaran}', [PendaftaranController::class, 'update'])->name('pendaftaran.update');
+            Route::patch('/pendaftaran/{pendaftaran}', [PendaftaranController::class, 'update'])->name('pendaftaran.patch');
+        });
+
+        // Hanya Admin: hapus pendaftaran
+        Route::middleware('role:admin')->group(function () {
+            Route::delete('/pendaftaran/{pendaftaran}', [PendaftaranController::class, 'destroy'])->name('pendaftaran.destroy');
+        });
 
         // ==================== REKAM MEDIS ENDPOINTS ====================
         // Baca data rekam medis

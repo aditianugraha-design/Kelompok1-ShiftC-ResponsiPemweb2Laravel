@@ -52,10 +52,22 @@ Route::middleware('auth')->group(function () {
     Route::put('/pasien/{pasien}', [PasienController::class, 'update'])->name('pasien.update');
 
     // ==========================================
-    // MODUL PENDAFTARAN (Disiapkan untuk Anggota 3)
+    // MODUL PENDAFTARAN
     // ==========================================
-    Route::resource('pendaftaran', PendaftaranController::class)->only(['index', 'create', 'store', 'update', 'destroy']);
+    // Semua role terautentikasi: melihat daftar & membuat pendaftaran
+    Route::get('/pendaftaran', [PendaftaranController::class, 'index'])->name('pendaftaran.index');
+    Route::get('/pendaftaran/create', [PendaftaranController::class, 'create'])->name('pendaftaran.create');
+    Route::post('/pendaftaran', [PendaftaranController::class, 'store'])->name('pendaftaran.store');
 
+    // Admin & Dokter: dapat memperbarui status pendaftaran
+    Route::middleware('role:admin|dokter')->group(function () {
+        Route::put('/pendaftaran/{pendaftaran}', [PendaftaranController::class, 'update'])->name('pendaftaran.update');
+    });
+
+    // Hanya Admin: menghapus pendaftaran
+    Route::middleware('role:admin')->group(function () {
+        Route::delete('/pendaftaran/{pendaftaran}', [PendaftaranController::class, 'destroy'])->name('pendaftaran.destroy');
+    });
     // ==========================================
     // MODUL REKAM MEDIS (Disiapkan untuk Anggota 4)
     // ==========================================

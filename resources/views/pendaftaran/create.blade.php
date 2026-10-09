@@ -73,35 +73,53 @@
 
                     {{-- PILIH PASIEN --}}
                     <div>
-                        <div class="flex items-center justify-between mb-1.5">
-                            <label for="pasien_id" class="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                                Pasien <span class="text-rose-500">*</span>
+                        @if(auth()->user()->isAdmin())
+                            {{-- Admin: dropdown pilih semua pasien --}}
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label for="pasien_id" class="block text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                    Pasien <span class="text-rose-500">*</span>
+                                </label>
+                                <a href="{{ route('pasien.create') }}" target="_blank" class="text-xs text-blue-600 hover:underline">
+                                    + Pasien Belum Terdaftar?
+                                </a>
+                            </div>
+                            <select id="pasien_id"
+                                    name="pasien_id"
+                                    x-model="selectedPasienId"
+                                    @change="updatePasienName($event)"
+                                    required
+                                    class="w-full px-4 py-2.5 text-sm border @error('pasien_id') border-rose-400 bg-rose-50/20 @else border-gray-300 @enderror rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors">
+                                <option value="">-- Pilih Pasien Terdaftar --</option>
+                                @foreach($pasiens as $p)
+                                    <option value="{{ $p->id }}"
+                                            data-nama="{{ $p->nama }}"
+                                            data-nik="{{ $p->nik }}"
+                                            data-telepon="{{ $p->no_telp }}"
+                                            {{ old('pasien_id') == $p->id ? 'selected' : '' }}>
+                                        {{ $p->nama }} — NIK: {{ $p->nik }} ({{ $p->no_telp }})
+                                    </option>
+                                @endforeach
+                            </select>
+                        @else
+                            {{-- Pasien: tampilkan identitas diri sendiri secara read-only --}}
+                            <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
+                                Pasien (Anda)
                             </label>
-                            <a href="{{ route('pasien.create') }}" target="_blank" class="text-xs text-blue-600 hover:underline">
-                                + Pasien Belum Terdaftar?
-                            </a>
-                        </div>
-                        <select id="pasien_id"
-                                name="pasien_id"
-                                x-model="selectedPasienId"
-                                @change="updatePasienName($event)"
-                                required
-                                class="w-full px-4 py-2.5 text-sm border @error('pasien_id') border-rose-400 bg-rose-50/20 @else border-gray-300 @enderror rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors">
-                            <option value="">-- Pilih Pasien Terdaftar --</option>
-                            @foreach($pasiens as $p)
-                                <option value="{{ $p->id }}"
-                                        data-nama="{{ $p->nama }}"
-                                        data-nik="{{ $p->nik }}"
-                                        data-telepon="{{ $p->no_telp }}"
-                                        {{ old('pasien_id') == $p->id ? 'selected' : '' }}>
-                                    {{ $p->nama }} — NIK: {{ $p->nik }} ({{ $p->no_telp }})
-                                </option>
-                            @endforeach
-                        </select>
+                            <input type="hidden" name="pasien_id" value="{{ $pasienSelf->id ?? '' }}">
+                            <div class="w-full px-4 py-2.5 text-sm border border-gray-200 rounded-xl bg-gray-50 text-gray-700">
+                                @if($pasienSelf)
+                                    <span class="font-semibold">{{ $pasienSelf->nama }}</span>
+                                    <span class="text-gray-500 text-xs ml-2">— NIK: {{ $pasienSelf->nik }} | {{ $pasienSelf->no_telp }}</span>
+                                @else
+                                    <span class="text-gray-400 italic">Data pasien tidak ditemukan.</span>
+                                @endif
+                            </div>
+                        @endif
                         @error('pasien_id')
                             <p class="text-xs text-rose-600 mt-1">{{ $message }}</p>
                         @enderror
                     </div>
+
 
                     {{-- PILIH DOKTER --}}
                     <div>

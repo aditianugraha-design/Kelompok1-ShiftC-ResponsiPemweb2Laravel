@@ -20,19 +20,36 @@ class Pendaftaran extends Model
     public function dokter() { return $this->belongsTo(Dokter::class); }
     public function rekamMedis() { return $this->hasOne(RekamMedis::class); }
 
+    /**
+     * Scope: Search by kode, keluhan, nama pasien, NIK, atau nama dokter.
+     */
     public function scopeSearch($query, $keyword)
     {
         return $query->where(function ($q) use ($keyword) {
             $q->where('kode_daftar', 'like', "%{$keyword}%")
-              ->orWhere('keluhan', 'like', "%{$keyword}%");
+              ->orWhere('keluhan', 'like', "%{$keyword}%")
+              ->orWhereHas('pasien', fn($qp) =>
+                  $qp->where('nama', 'like', "%{$keyword}%")
+                     ->orWhere('nik', 'like', "%{$keyword}%")
+              )
+              ->orWhereHas('dokter', fn($qd) =>
+                  $qd->where('nama', 'like', "%{$keyword}%")
+                     ->orWhere('spesialisasi', 'like', "%{$keyword}%")
+              );
         });
     }
 
+    /**
+     * Scope: Filter by status.
+     */
     public function scopeStatus($query, $status)
     {
         return $query->where('status', $status);
     }
 
+    /**
+     * Generate kode pendaftaran unik: REG-YYYYMMDDxxxx
+     */
     public static function generateKodeDaftar(): string
     {
         $prefix = 'REG-' . date('Ymd');
