@@ -9,6 +9,7 @@
 /.cursor/
 /.idea
 /.nova
+/.opencode/
 /.phpunit.cache
 /.vscode
 /.zed
@@ -26,3 +27,5 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 CLAUDE.md
+AGENTS.md
+boost.json
