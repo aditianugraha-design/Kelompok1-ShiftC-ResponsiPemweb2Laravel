@@ -1,107 +1,88 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreRekamMedisRequest;
+use App\Http\Requests\UpdateRekamMedisRequest;
+use App\Http\Resources\RekamMedisResource;
 use App\Models\Dokter;
 use App\Models\Pasien;
-use App\Models\Pendaftaran;
 use App\Models\RekamMedis;
+use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class RekamMedisController extends Controller
 {
+    use ApiResponse;
+
     public function index(Request $request)
     {
         $user = auth()->user();
         $query = RekamMedis::with(['pendaftaran.pasien', 'pendaftaran.dokter']);
 
-        // Filter berdasarkan role
         if ($user->isDokter()) {
             $dokter = Dokter::where('user_id', $user->id)->first();
-            $query->whereHas('pendaftaran', fn($q) => $q->where('dokter_id', $dokter?->id));
+            $query->whereHas('pendaftaran', fn ($q) => $q->where('dokter_id', $dokter?->id));
         } elseif ($user->isPasien()) {
             $pasien = Pasien::where('user_id', $user->id)->first();
-            $query->whereHas('pendaftaran', fn($q) => $q->where('pasien_id', $pasien?->id));
+            $query->whereHas('pendaftaran', fn ($q) => $q->where('pasien_id', $pasien?->id));
         }
 
         if ($request->filled('search')) {
             $query->search($request->search);
         }
 
-        $rekamMedis = $query->latest()->paginate(10)->withQueryString();
+        $rekamMedis = $query->latest()->paginate($request->get('per_page', 10));
 
-        return view('rekam-medis.index', compact('rekamMedis'));
+        return $this->paginated($rekamMedis, RekamMedisResource::class, 'Data rekam medis berhasil diambil');
     }
 
-    public function create(Request $request)
+    public function store(StoreRekamMedisRequest $request)
     {
-        $user = auth()->user();
+        $validated = $request->validated();
 
-        $query = Pendaftaran::with(['pasien', 'dokter'])
-            ->whereIn('status', ['menunggu', 'diproses'])
-            ->whereDoesntHave('rekamMedis');
-
-        if ($user->isDokter()) {
-            $dokter = Dokter::where('user_id', $user->id)->first();
-            $query->where('dokter_id', $dokter?->id);
-        }
-
-        $pendaftarans = $query->latest()->get();
-
-        $selectedPendaftaran = null;
-        if ($request->filled('pendaftaran_id')) {
-            $selectedPendaftaran = Pendaftaran::find($request->pendaftaran_id);
-        }
-
-        return view('rekam-medis.create', compact('pendaftarans', 'selectedPendaftaran'));
-    }
-
-    public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'pendaftaran_id' => 'required|exists:pendaftarans,id|unique:rekam_medis,pendaftaran_id',
-            'diagnosa' => 'required|string',
-            'tindakan' => 'nullable|string',
-            'resep' => 'nullable|string',
-            'catatan' => 'nullable|string',
-        ]);
-
-        DB::transaction(function () use ($validated) {
+        $rekamMedis = DB::transaction(function () use ($validated) {
             $rekamMedis = RekamMedis::create($validated);
             // Business process: update status pendaftaran jadi selesai
             $rekamMedis->pendaftaran->update(['status' => 'selesai']);
+
+            return $rekamMedis;
         });
 
-        return redirect()->route('rekam-medis.index')
-            ->with('success', 'Rekam medis berhasil disimpan. Status pendaftaran telah diubah menjadi Selesai.');
+        return $this->success(
+            new RekamMedisResource($rekamMedis->load(['pendaftaran.pasien', 'pendaftaran.dokter'])),
+            'Rekam medis berhasil dibuat',
+            201
+        );
     }
 
-    public function show(RekamMedis $rekamMedis)
+    public function show(Request $request, RekamMedis $rekamMedis)
     {
+        $user = $request->user();
+
         $rekamMedis->load(['pendaftaran.pasien', 'pendaftaran.dokter']);
-        return view('rekam-medis.show', compact('rekamMedis'));
+
+        if ($user->isPasien() && $user->pasien && $rekamMedis->pendaftaran->pasien_id !== $user->pasien->id) {
+            return $this->error('Anda tidak memiliki akses ke data rekam medis ini.', 403);
+        }
+
+        if ($user->isDokter() && $user->dokter && $rekamMedis->pendaftaran->dokter_id !== $user->dokter->id) {
+            return $this->error('Anda tidak memiliki akses ke data rekam medis ini.', 403);
+        }
+
+        return $this->success(new RekamMedisResource($rekamMedis));
     }
 
-    public function edit(RekamMedis $rekamMedis)
+    public function update(UpdateRekamMedisRequest $request, RekamMedis $rekamMedis)
     {
-        $rekamMedis->load(['pendaftaran.pasien', 'pendaftaran.dokter']);
-        return view('rekam-medis.edit', compact('rekamMedis'));
-    }
+        $rekamMedis->update($request->validated());
 
-    public function update(Request $request, RekamMedis $rekamMedis)
-    {
-        $validated = $request->validate([
-            'diagnosa' => 'required|string',
-            'tindakan' => 'nullable|string',
-            'resep' => 'nullable|string',
-            'catatan' => 'nullable|string',
-        ]);
-
-        $rekamMedis->update($validated);
-
-        return redirect()->route('rekam-medis.show', $rekamMedis)
-            ->with('success', 'Rekam medis berhasil diperbarui.');
+        return $this->success(
+            new RekamMedisResource($rekamMedis->load(['pendaftaran.pasien', 'pendaftaran.dokter'])),
+            'Rekam medis berhasil diperbarui.'
+        );
     }
 
     public function destroy(RekamMedis $rekamMedis)
@@ -111,8 +92,6 @@ class RekamMedisController extends Controller
             $rekamMedis->delete();
         });
 
-        return redirect()->route('rekam-medis.index')
-            ->with('success', 'Rekam medis berhasil dihapus. Status pendaftaran dikembalikan ke Diproses.');
+        return $this->success(null, 'Rekam medis berhasil dihapus. Status pendaftaran dikembalikan ke Diproses.');
     }
 }
-

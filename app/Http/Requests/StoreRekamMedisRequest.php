@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Pendaftaran;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreRekamMedisRequest extends FormRequest
@@ -9,6 +10,7 @@ class StoreRekamMedisRequest extends FormRequest
     public function authorize(): bool
     {
         $user = $this->user();
+
         return $user && ($user->isAdmin() || $user->isDokter());
     }
 
@@ -16,10 +18,10 @@ class StoreRekamMedisRequest extends FormRequest
     {
         return [
             'pendaftaran_id' => 'required|exists:pendaftarans,id|unique:rekam_medis,pendaftaran_id',
-            'diagnosa'       => 'required|string|max:2000',
-            'tindakan'       => 'nullable|string|max:2000',
-            'resep'          => 'nullable|string|max:2000',
-            'catatan'        => 'nullable|string|max:2000',
+            'diagnosa' => 'required|string|max:2000',
+            'tindakan' => 'nullable|string|max:2000',
+            'resep' => 'nullable|string|max:2000',
+            'catatan' => 'nullable|string|max:2000',
         ];
     }
 
@@ -27,14 +29,32 @@ class StoreRekamMedisRequest extends FormRequest
     {
         return [
             'pendaftaran_id.required' => 'Pendaftaran wajib dipilih.',
-            'pendaftaran_id.exists'   => 'Pendaftaran tidak ditemukan.',
-            'pendaftaran_id.unique'   => 'Pendaftaran ini sudah memiliki rekam medis.',
-            'diagnosa.required'       => 'Diagnosa wajib diisi.',
-            'diagnosa.max'            => 'Diagnosa tidak boleh lebih dari 2000 karakter.',
-            'tindakan.max'            => 'Tindakan tidak boleh lebih dari 2000 karakter.',
-            'resep.max'               => 'Resep tidak boleh lebih dari 2000 karakter.',
-            'catatan.max'             => 'Catatan tidak boleh lebih dari 2000 karakter.',
+            'pendaftaran_id.exists' => 'Pendaftaran tidak ditemukan.',
+            'pendaftaran_id.unique' => 'Pendaftaran ini sudah memiliki rekam medis.',
+            'diagnosa.required' => 'Diagnosa wajib diisi.',
+            'diagnosa.max' => 'Diagnosa tidak boleh lebih dari 2000 karakter.',
+            'tindakan.max' => 'Tindakan tidak boleh lebih dari 2000 karakter.',
+            'resep.max' => 'Resep tidak boleh lebih dari 2000 karakter.',
+            'catatan.max' => 'Catatan tidak boleh lebih dari 2000 karakter.',
         ];
     }
-}
 
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            $pendaftaran = Pendaftaran::find($this->input('pendaftaran_id'));
+
+            if (! $pendaftaran) {
+                return;
+            }
+
+            if (in_array($pendaftaran->status, Pendaftaran::STATUS_FINAL, true)) {
+                $validator->errors()->add('pendaftaran_id', 'Pendaftaran dengan status selesai/batal tidak dapat dibuatkan rekam medis.');
+            }
+
+            if (! in_array($pendaftaran->status, [Pendaftaran::STATUS_MENUNGGU, Pendaftaran::STATUS_DIPROSES], true)) {
+                $validator->errors()->add('pendaftaran_id', 'Rekam medis hanya dapat dibuat untuk pendaftaran menunggu/diproses.');
+            }
+        });
+    }
+}
