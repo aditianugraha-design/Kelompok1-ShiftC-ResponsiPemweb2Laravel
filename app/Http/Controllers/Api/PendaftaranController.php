@@ -29,13 +29,9 @@ class PendaftaranController extends Controller
                 $query->whereRaw('1 = 0');
             }
         } elseif ($user->isDokter()) {
-            // Dokter hanya melihat antrean pasien yang mendaftar ke dirinya
+            // Dokter hanya melihat antrean pasien yang mendaftar ke dirinya (semua tanggal).
             if ($user->dokter) {
                 $query->where('dokter_id', $user->dokter->id);
-                // Default ke hari ini jika tidak ada filter tanggal
-                if (!$request->filled('tgl_kunjungan')) {
-                    $query->whereDate('tgl_kunjungan', today());
-                }
             } else {
                 $query->whereRaw('1 = 0');
             }
@@ -47,15 +43,13 @@ class PendaftaranController extends Controller
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('kode_daftar', 'like', "%{$search}%")
-                  ->orWhere('keluhan', 'like', "%{$search}%")
-                  ->orWhereHas('pasien', fn($qp) =>
-                      $qp->where('nama', 'like', "%{$search}%")
-                         ->orWhere('nik', 'like', "%{$search}%")
-                  )
-                  ->orWhereHas('dokter', fn($qd) =>
-                      $qd->where('nama', 'like', "%{$search}%")
-                         ->orWhere('spesialisasi', 'like', "%{$search}%")
-                  );
+                    ->orWhere('keluhan', 'like', "%{$search}%")
+                    ->orWhereHas('pasien', fn ($qp) => $qp->where('nama', 'like', "%{$search}%")
+                        ->orWhere('nik', 'like', "%{$search}%")
+                    )
+                    ->orWhereHas('dokter', fn ($qd) => $qd->where('nama', 'like', "%{$search}%")
+                        ->orWhere('spesialisasi', 'like', "%{$search}%")
+                    );
             });
         }
 
@@ -79,7 +73,18 @@ class PendaftaranController extends Controller
             $query->whereDate('tgl_kunjungan', $request->tgl_kunjungan);
         }
 
-        $pendaftaran = $query->latest()->paginate($request->get('per_page', 10));
+        // Antrean = hari ini: default kunjungan hari ini untuk admin & dokter.
+        // Pasien tetap melihat seluruh riwayatnya.
+        if (! $user->isPasien() && ! $request->filled('tgl_kunjungan')) {
+            $query->whereDate('tgl_kunjungan', today());
+        }
+
+        if ($user->isPasien()) {
+            $pendaftaran = $query->latest()->paginate($request->get('per_page', 10));
+        } else {
+            // Urut antrean dari jam paling awal agar pasien terdepan diperiksa dulu
+            $pendaftaran = $query->orderBy('jam_kunjungan', 'asc')->orderBy('id', 'asc')->paginate($request->get('per_page', 10));
+        }
 
         return $this->paginated($pendaftaran, PendaftaranResource::class, 'Data pendaftaran berhasil diambil');
     }
@@ -114,15 +119,47 @@ class PendaftaranController extends Controller
         }
 
         $pendaftaran->load(['pasien', 'dokter', 'rekamMedis']);
+
         return $this->success(new PendaftaranResource($pendaftaran));
     }
 
     public function update(UpdatePendaftaranRequest $request, Pendaftaran $pendaftaran)
     {
+        $to = $request->input('status');
+
+        if ($to === null || $to === '') {
+            return $this->error('Status pendaftaran wajib diisi.', 422);
+        }
+
+        if (! $pendaftaran->canTransitionTo($to)) {
+            return $this->error("Transisi status dari {$pendaftaran->status} ke {$to} tidak diizinkan.", 422);
+        }
+
         $pendaftaran->update($request->validated());
+
         return $this->success(
             new PendaftaranResource($pendaftaran->load(['pasien', 'dokter', 'rekamMedis'])),
             'Pendaftaran berhasil diupdate'
+        );
+    }
+
+    public function cancel(Request $request, Pendaftaran $pendaftaran)
+    {
+        $user = $request->user();
+
+        if (! $user->isPasien() || ! $user->pasien || $pendaftaran->pasien_id !== $user->pasien->id) {
+            return $this->error('Anda tidak memiliki akses ke data pendaftaran ini.', 403);
+        }
+
+        if ($pendaftaran->status !== Pendaftaran::STATUS_MENUNGGU) {
+            return $this->error('Hanya pendaftaran menunggu yang dapat dibatalkan.', 422);
+        }
+
+        $pendaftaran->update(['status' => Pendaftaran::STATUS_BATAL]);
+
+        return $this->success(
+            new PendaftaranResource($pendaftaran->load(['pasien', 'dokter', 'rekamMedis'])),
+            'Pendaftaran berhasil dibatalkan.'
         );
     }
 
@@ -131,7 +168,7 @@ class PendaftaranController extends Controller
         $user = auth()->user();
 
         // Hanya admin yang bisa menghapus
-        if (!$user->isAdmin()) {
+        if (! $user->isAdmin()) {
             return $this->error('Hanya admin yang dapat menghapus data pendaftaran.', 403);
         }
 
@@ -140,6 +177,7 @@ class PendaftaranController extends Controller
         }
 
         $pendaftaran->delete();
+
         return $this->success(null, 'Pendaftaran berhasil dihapus');
     }
 }

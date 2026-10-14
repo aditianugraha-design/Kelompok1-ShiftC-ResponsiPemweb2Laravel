@@ -11,11 +11,11 @@
             <span class="text-gray-800 font-medium">Pendaftaran</span>
         </div>
         @if(auth()->user()->isAdmin())
-            <h1 class="text-2xl lg:text-3xl font-bold text-gray-900 tracking-tight">Manajemen Pendaftaran Pasien</h1>
-            <p class="text-sm text-gray-500 mt-1">Kelola antrean kunjungan, jadwal konsultasi dokter, dan status pelayanan klinik</p>
+            <h1 class="text-2xl lg:text-3xl font-bold text-gray-900 tracking-tight">Antrean Hari Ini</h1>
+            <p class="text-sm text-gray-500 mt-1">Daftar antrean kunjungan tanggal {{ date('d M Y', strtotime($tanggalAktif ?? today()->toDateString())) }}, urut dari jam paling awal</p>
         @elseif(auth()->user()->isDokter())
             <h1 class="text-2xl lg:text-3xl font-bold text-gray-900 tracking-tight">Antrean Pasien Hari Ini</h1>
-            <p class="text-sm text-gray-500 mt-1">Daftar pasien yang terjadwal menemui Anda hari ini</p>
+            <p class="text-sm text-gray-500 mt-1">Pasien yang terjadwal menemui Anda hari ini, urut dari jam paling awal</p>
         @else
             <h1 class="text-2xl lg:text-3xl font-bold text-gray-900 tracking-tight">Riwayat Kunjungan Saya</h1>
             <p class="text-sm text-gray-500 mt-1">Daftar riwayat pendaftaran dan status kunjungan Anda ke klinik</p>
@@ -86,6 +86,14 @@
     </div>
     @endif
 
+    {{-- Peringatan akun dokter belum tertaut ke data dokter --}}
+    @if(auth()->user()->isDokter() && ! auth()->user()->dokter)
+    <div class="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl shadow-sm text-sm">
+        <p class="font-semibold">Akun dokter belum tertaut ke data dokter.</p>
+        <p class="mt-0.5">Hubungi admin agar <span class="font-mono">{{ auth()->user()->email }}</span> ditautkan pada <span class="font-semibold">user_id</span> di tabel dokters. Antrean tidak dapat ditampilkan sebelum penautan.</p>
+    </div>
+    @endif
+
     {{-- STATISTIC SUMMARY CARDS --}}
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <!-- Card 1: Total Pendaftaran -->
@@ -94,7 +102,11 @@
                 <div>
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Pendaftaran</p>
                     <h3 class="text-2xl font-bold text-gray-900 mt-1">{{ number_format($total ?? $pendaftarans->total()) }}</h3>
+                    @if(!auth()->user()->isPasien() && !empty($tanggalAktif))
+                    <p class="text-xs text-gray-500 mt-1">Antrean tanggal {{ date('d M Y', strtotime($tanggalAktif)) }}</p>
+                    @else
                     <p class="text-xs text-gray-500 mt-1">Keseluruhan nomor antrean</p>
+                    @endif
                 </div>
                 <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -188,7 +200,8 @@
                 </select>
             </div>
 
-            {{-- Dokter Filter --}}
+            {{-- Dokter Filter (hanya admin, dokter sudah terkunci ke dirinya) --}}
+            @if(auth()->user()->isAdmin())
             <div class="w-full md:w-52">
                 <select name="dokter_id"
                         class="w-full py-2.5 px-3.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors">
@@ -200,12 +213,13 @@
                     @endforeach
                 </select>
             </div>
+            @endif
 
-            {{-- Tanggal Filter --}}
+            {{-- Tanggal Filter (default hari ini untuk antrean) --}}
             <div class="w-full md:w-44">
                 <input type="date"
                        name="tgl_kunjungan"
-                       value="{{ request('tgl_kunjungan') }}"
+                       value="{{ request('tgl_kunjungan', $tanggalAktif ?? '') }}"
                        class="w-full py-2.5 px-3.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors">
             </div>
 
@@ -398,8 +412,8 @@
                                     </svg>
                                 </button>
 
-                                {{-- Ubah / Update Status: hanya Admin & Dokter --}}
-                                @if(auth()->user()->isAdmin() || auth()->user()->isDokter())
+                                {{-- Ubah / Update Status: hanya Admin & Dokter, dan hanya antrean aktif --}}
+                                @if((auth()->user()->isAdmin() || auth()->user()->isDokter()) && in_array($item->status, ['menunggu', 'diproses']))
                                 <button type="button"
                                         @click="openEditModal({{ json_encode($item) }})"
                                         class="p-2 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors"
@@ -408,6 +422,23 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
                                     </svg>
                                 </button>
+                                @endif
+
+                                {{-- Batalkan: pasien pemilik saat masih menunggu --}}
+                                @if(auth()->user()->isPasien() && isset($item))
+                                @if($item->status === 'menunggu')
+                                <form action="{{ route('pendaftaran.cancel', $item) }}" method="POST" onsubmit="return confirm('Batalkan pendaftaran {{ $item->kode_daftar }}?')">
+                                    @csrf
+                                    @method('PATCH')
+                                    <button type="submit"
+                                        class="p-2 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+                                        title="Batalkan Pendaftaran">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    </button>
+                                </form>
+                                @endif
                                 @endif
 
                                 {{-- Hapus: hanya Admin --}}
@@ -644,32 +675,43 @@
                     <p class="text-sm font-bold text-gray-900 mt-0.5" x-text="editForm.pasien_nama"></p>
                 </div>
 
-                {{-- Status Pendaftaran --}}
+                {{-- Status Pendaftaran (transisi ketat: selesai hanya via rekam medis) --}}
                 <div>
                     <label class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
                         Status Kunjungan <span class="text-rose-500">*</span>
                     </label>
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                        <label class="flex items-center justify-center gap-1.5 p-2.5 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50 has-[:checked]:text-amber-800 text-xs font-semibold text-gray-600">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        <label x-show="editForm.status_awal === 'menunggu'"
+                            class="flex items-center justify-center gap-1.5 p-2.5 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 has-[:checked]:border-amber-500 has-[:checked]:bg-amber-50 has-[:checked]:text-amber-800 text-xs font-semibold text-gray-600">
                             <input type="radio" name="status" value="menunggu" x-model="editForm.status" class="sr-only">
                             <span>⏳ Menunggu</span>
                         </label>
-                        <label class="flex items-center justify-center gap-1.5 p-2.5 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50 has-[:checked]:text-blue-800 text-xs font-semibold text-gray-600">
+                        <label x-show="editForm.status_awal === 'diproses'"
+                            class="flex items-center justify-center gap-1.5 p-2.5 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50 has-[:checked]:text-blue-800 text-xs font-semibold text-gray-600">
                             <input type="radio" name="status" value="diproses" x-model="editForm.status" class="sr-only">
                             <span>⚡ Diproses</span>
                         </label>
-                        <label class="flex items-center justify-center gap-1.5 p-2.5 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 has-[:checked]:border-emerald-500 has-[:checked]:bg-emerald-50 has-[:checked]:text-emerald-800 text-xs font-semibold text-gray-600">
-                            <input type="radio" name="status" value="selesai" x-model="editForm.status" class="sr-only">
-                            <span>✅ Selesai</span>
+                        <label x-show="editForm.status_awal === 'menunggu'"
+                            class="flex items-center justify-center gap-1.5 p-2.5 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50 has-[:checked]:text-blue-800 text-xs font-semibold text-gray-600">
+                            <input type="radio" name="status" value="diproses" x-model="editForm.status" class="sr-only">
+                            <span>⚡ Diproses (Check-in)</span>
                         </label>
-                        <label class="flex items-center justify-center gap-1.5 p-2.5 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 has-[:checked]:border-rose-500 has-[:checked]:bg-rose-50 has-[:checked]:text-rose-800 text-xs font-semibold text-gray-600">
+                        <label x-show="editForm.status_awal === 'menunggu' || editForm.status_awal === 'diproses'"
+                            class="flex items-center justify-center gap-1.5 p-2.5 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-50 has-[:checked]:border-rose-500 has-[:checked]:bg-rose-50 has-[:checked]:text-rose-800 text-xs font-semibold text-gray-600">
                             <input type="radio" name="status" value="batal" x-model="editForm.status" class="sr-only">
                             <span>❌ Batal</span>
                         </label>
                     </div>
+                    <template x-if="editForm.status_awal === 'diproses'">
+                        <p class="mt-2 text-xs text-blue-600 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2">Status selesai hanya via pembuatan rekam medis.</p>
+                    </template>
+                    <template x-if="editForm.status_awal === 'selesai' || editForm.status_awal === 'batal'">
+                        <p class="mt-2 text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2">Pendaftaran final tidak dapat diubah lagi.</p>
+                    </template>
                 </div>
 
-                {{-- Dokter --}}
+                {{-- Dokter: admin bisa ganti, dokter terkunci ke dirinya sendiri --}}
+                @if(auth()->user()->isAdmin())
                 <div>
                     <label for="edit_dokter_id" class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
                         Dokter Pemeriksa <span class="text-rose-500">*</span>
@@ -685,6 +727,13 @@
                         @endforeach
                     </select>
                 </div>
+                @else
+                <div class="p-3 bg-gray-50 rounded-xl border border-gray-200">
+                    <p class="text-xs font-semibold text-gray-500 uppercase">Dokter Pemeriksa</p>
+                    <p class="text-sm font-bold text-gray-900 mt-0.5" x-text="editForm.dokter_nama || '-'"></p>
+                    <input type="hidden" name="dokter_id" x-model="editForm.dokter_id">
+                </div>
+                @endif
 
                 {{-- Jadwal --}}
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -846,9 +895,11 @@
                 </div>
             </div>
 
-            {{-- Footer Detail --}}
+            {{-- Footer Detail: ubah status hanya admin/dokter, pasien hanya batalkan --}}
             <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+                @if(auth()->user()->isAdmin() || auth()->user()->isDokter())
                 <button type="button"
+                        x-show="detailData.status === 'menunggu' || detailData.status === 'diproses'"
                         @click="showDetailModal = false; openEditModal(detailData)"
                         class="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 hover:text-amber-800 hover:underline">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -856,6 +907,10 @@
                     </svg>
                     <span>Ubah Status</span>
                 </button>
+                <span x-show="detailData.status === 'selesai' || detailData.status === 'batal'" class="text-xs text-gray-400 italic">Pendaftaran final.</span>
+                @else
+                <span></span>
+                @endif
                 <button type="button"
                         @click="showDetailModal = false"
                         class="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-xs font-semibold rounded-xl transition-colors">
@@ -939,6 +994,8 @@ function pendaftaranManagement() {
             tgl_kunjungan: '',
             jam_kunjungan: '',
             status: 'menunggu',
+            status_awal: 'menunggu',
+            dokter_nama: '',
             keluhan: ''
         },
 
@@ -956,9 +1013,11 @@ function pendaftaranManagement() {
                 kode_daftar: item.kode_daftar || '',
                 pasien_nama: item.pasien ? item.pasien.nama : '-',
                 dokter_id: item.dokter_id || '',
+                dokter_nama: item.dokter ? (item.dokter.nama + ' (' + (item.dokter.spesialisasi || '-') + ')') : '-',
                 tgl_kunjungan: item.tgl_kunjungan ? item.tgl_kunjungan.substring(0, 10) : '',
                 jam_kunjungan: item.jam_kunjungan ? item.jam_kunjungan.substring(0, 5) : '',
                 status: item.status || 'menunggu',
+                status_awal: item.status || 'menunggu',
                 keluhan: item.keluhan || ''
             };
             this.showEditModal = true;
