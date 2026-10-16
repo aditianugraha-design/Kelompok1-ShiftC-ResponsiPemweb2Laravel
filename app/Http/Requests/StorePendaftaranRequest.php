@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Dokter;
+use App\Services\JadwalPraktikParser;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StorePendaftaranRequest extends FormRequest
@@ -46,5 +48,50 @@ class StorePendaftaranRequest extends FormRequest
             'keluhan.required'          => 'Keluhan utama wajib diisi.',
             'keluhan.max'               => 'Keluhan tidak boleh lebih dari 1000 karakter.',
         ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            $dokter = Dokter::find($this->input('dokter_id'));
+
+            if (! $dokter) {
+                return;
+            }
+
+            if ($dokter->status !== 'aktif') {
+                $validator->errors()->add('dokter_id', 'Dokter yang dipilih sedang tidak aktif (non-aktif).');
+
+                return;
+            }
+
+            $jadwal = JadwalPraktikParser::parse($dokter->jadwal_praktik);
+
+            if (! $jadwal['parseable']) {
+                return;
+            }
+
+            $tgl = (string) $this->input('tgl_kunjungan');
+            $jam = substr((string) $this->input('jam_kunjungan'), 0, 5);
+
+            if (! JadwalPraktikParser::hariSesuai($tgl, $jadwal['days'])) {
+                $hari = JadwalPraktikParser::namaHari($jadwal['days']);
+                $validator->errors()->add(
+                    'tgl_kunjungan',
+                    "Dokter {$dokter->nama} hanya praktik pada hari: {$hari}."
+                );
+            }
+
+            if (! JadwalPraktikParser::jamSesuai($jam, $jadwal['slots'])) {
+                $validator->errors()->add(
+                    'jam_kunjungan',
+                    "Jam {$jam} di luar jadwal praktik dokter ({$dokter->jadwal_praktik})."
+                );
+            }
+        });
     }
 }

@@ -52,9 +52,11 @@ class DashboardController extends Controller
         if (! $dokter) {
             return [
                 [
+                    'antrean_aktif'           => 0,
                     'antrean_hari_ini'       => 0,
                     'menunggu'               => 0,
                     'diproses'               => 0,
+                    'selesai_total'          => 0,
                     'selesai_hari_ini'       => 0,
                     'total_pasien_ditangani' => 0,
                     'total_rekam_medis'      => 0,
@@ -68,13 +70,19 @@ class DashboardController extends Controller
 
         $perStatus = $this->hitungPerStatus(clone $hariIni);
 
+        $totalBase = Pendaftaran::where('dokter_id', $dokter->id);
+        $menungguTotal = (clone $totalBase)->where('status', 'menunggu')->count();
+        $diprosesTotal = (clone $totalBase)->where('status', 'diproses')->count();
+        $selesaiTotal = (clone $totalBase)->where('status', 'selesai')->count();
+
         $stats = [
+            'antrean_aktif'            => $menungguTotal + $diprosesTotal,
             'antrean_hari_ini'       => $perStatus->sum(),
-            'menunggu'               => $perStatus->get('menunggu', 0),
-            'diproses'               => $perStatus->get('diproses', 0),
+            'menunggu'               => $menungguTotal,
+            'diproses'               => $diprosesTotal,
+            'selesai_total'          => $selesaiTotal,
             'selesai_hari_ini'       => $perStatus->get('selesai', 0),
-            'total_pasien_ditangani' => Pendaftaran::where('dokter_id', $dokter->id)
-                                            ->where('status', 'selesai')->count(),
+            'total_pasien_ditangani' => $selesaiTotal,
             'total_rekam_medis'      => RekamMedis::whereHas('pendaftaran',
                                             fn (Builder $q) => $q->where('dokter_id', $dokter->id)
                                         )->count(),

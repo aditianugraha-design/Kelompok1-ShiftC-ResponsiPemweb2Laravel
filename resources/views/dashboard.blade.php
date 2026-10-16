@@ -86,8 +86,8 @@
         <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4">
             <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-2xl shrink-0">📅</div>
             <div>
-                <p class="text-xs text-gray-500 font-medium">Antrean Hari Ini</p>
-                <p class="text-3xl font-bold text-blue-600">{{ $stats['antrean_hari_ini'] }}</p>
+                <p class="text-xs text-gray-500 font-medium">Antrean Aktif</p>
+                <p class="text-3xl font-bold text-blue-600">{{ $stats['antrean_aktif'] }}</p>
             </div>
         </div>
         <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4">
@@ -107,8 +107,8 @@
         <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4">
             <div class="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-2xl shrink-0">✅</div>
             <div>
-                <p class="text-xs text-gray-500 font-medium">Selesai Hari Ini</p>
-                <p class="text-3xl font-bold text-emerald-600">{{ $stats['selesai_hari_ini'] }}</p>
+                <p class="text-xs text-gray-500 font-medium">Selesai Ditangani</p>
+                <p class="text-3xl font-bold text-emerald-600">{{ $stats['selesai_total'] }}</p>
             </div>
         </div>
         <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex items-center gap-4">

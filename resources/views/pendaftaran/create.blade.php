@@ -51,7 +51,7 @@
     </div>
     @endif
 
-    <form action="{{ route('pendaftaran.store') }}" method="POST" class="space-y-6">
+    <form action="{{ route('pendaftaran.store') }}" method="POST" class="space-y-6" @submit.prevent="if (validasiTanggal()) $el.submit()">
         @csrf
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -137,11 +137,15 @@
                                 <option value="{{ $d->id }}"
                                         data-nama="{{ $d->nama }}"
                                         data-spesialisasi="{{ $d->spesialisasi }}"
+                                        data-jadwal="{{ $d->jadwal_praktik }}"
                                         {{ old('dokter_id') == $d->id ? 'selected' : '' }}>
                                     {{ $d->nama }} — Spesialis {{ $d->spesialisasi }}
                                 </option>
                             @endforeach
                         </select>
+                        <p id="jadwalInfo" class="text-xs text-gray-500 mt-1.5 hidden">
+                            🕒 Jadwal praktik: <span id="jadwalText" class="font-semibold text-gray-700"></span>
+                        </p>
                         @error('dokter_id')
                             <p class="text-xs text-rose-600 mt-1">{{ $message }}</p>
                         @enderror
@@ -171,25 +175,30 @@
                                    name="tgl_kunjungan"
                                    x-model="tglKunjungan"
                                    required
+                                   min="{{ date('Y-m-d') }}"
                                    value="{{ old('tgl_kunjungan', date('Y-m-d')) }}"
                                    class="w-full px-4 py-2.5 text-sm border @error('tgl_kunjungan') border-rose-400 bg-rose-50/20 @else border-gray-300 @enderror rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                            <p x-show="tglError" x-text="tglError" class="text-xs text-rose-600 mt-1"></p>
                             @error('tgl_kunjungan')
                                 <p class="text-xs text-rose-600 mt-1">{{ $message }}</p>
                             @enderror
                         </div>
 
-                        {{-- Jam Kunjungan --}}
+                        {{-- Jam Kunjungan: hanya slot dalam jadwal praktik dokter --}}
                         <div>
                             <label for="jam_kunjungan" class="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1.5">
                                 Jam Kunjungan <span class="text-rose-500">*</span>
                             </label>
-                            <input type="time"
-                                   id="jam_kunjungan"
-                                   name="jam_kunjungan"
-                                   x-model="jamKunjungan"
-                                   required
-                                   value="{{ old('jam_kunjungan', date('H:i')) }}"
-                                   class="w-full px-4 py-2.5 text-sm border @error('jam_kunjungan') border-rose-400 bg-rose-50/20 @else border-gray-300 @enderror rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                            <select id="jam_kunjungan"
+                                    name="jam_kunjungan"
+                                    x-model="jamKunjungan"
+                                    required
+                                    class="w-full px-4 py-2.5 text-sm border @error('jam_kunjungan') border-rose-400 bg-rose-50/20 @else border-gray-300 @enderror rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white transition-colors">
+                                <option value="">-- Pilih dokter dulu --</option>
+                            </select>
+                            <input type="time" id="jam_kunjungan_manual" value="{{ old('jam_kunjungan') }}" x-model="jamKunjungan"
+                                class="hidden w-full px-4 py-2.5 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors">
+                            <p class="text-xs text-gray-400 mt-1">Hanya jam dalam jadwal praktik dokter yang tersedia.</p>
                             @error('jam_kunjungan')
                                 <p class="text-xs text-rose-600 mt-1">{{ $message }}</p>
                             @enderror
@@ -317,6 +326,26 @@
 </div>
 
 <script>
+const JADWAL_MAP = @json($jadwalMap ?? []);
+const NAMA_HARI_JS = {1: 'Senin', 2: 'Selasa', 3: 'Rabu', 4: 'Kamis', 5: 'Jumat', 6: 'Sabtu', 7: 'Minggu'};
+
+function slotOptions(slots, stepMenit = 30) {
+    const hasil = [];
+    for (const [mulai, selesai] of slots) {
+        const [jh, jm] = mulai.split(':').map(Number);
+        const [ah, am] = selesai.split(':').map(Number);
+        let mnt = jh * 60 + jm;
+        const akhir = ah * 60 + am;
+        while (mnt <= akhir) {
+            const h = String(Math.floor(mnt / 60)).padStart(2, '0');
+            const i = String(mnt % 60).padStart(2, '0');
+            hasil.push(`${h}:${i}`);
+            mnt += stepMenit;
+        }
+    }
+    return [...new Set(hasil)].sort();
+}
+
 function createPendaftaranForm() {
     return {
         selectedPasienId: '{{ old('pasien_id') }}',
@@ -325,8 +354,9 @@ function createPendaftaranForm() {
         dokterName: '',
         dokterSpesialisasi: '',
         tglKunjungan: '{{ old('tgl_kunjungan', date('Y-m-d')) }}',
-        jamKunjungan: '{{ old('jam_kunjungan', date('H:i')) }}',
-        keluhan: '{{ old('keluhan') }}',
+        jamKunjungan: '{{ old('jam_kunjungan') }}',
+        keluhan: @json(old('keluhan')),
+        tglError: '',
 
         init() {
             this.$nextTick(() => {
@@ -339,7 +369,76 @@ function createPendaftaranForm() {
                     this.dokterName = dEl.options[dEl.selectedIndex].getAttribute('data-nama') || '';
                     this.dokterSpesialisasi = dEl.options[dEl.selectedIndex].getAttribute('data-spesialisasi') || '';
                 }
+                this.refreshJadwal();
             });
+            this.$watch('tglKunjungan', () => this.validasiTanggal());
+        },
+
+        jadwalAktif() {
+            return JADWAL_MAP[this.selectedDokterId] || null;
+        },
+
+        refreshJadwal() {
+            const info = document.getElementById('jadwalInfo');
+            const text = document.getElementById('jadwalText');
+            const jadwal = this.jadwalAktif();
+            if (jadwal && jadwal.text) {
+                text.textContent = jadwal.text;
+                info.classList.remove('hidden');
+            } else {
+                info.classList.add('hidden');
+            }
+            this.refreshSlotJam();
+            this.validasiTanggal();
+        },
+
+        refreshSlotJam() {
+            const sel = document.getElementById('jam_kunjungan');
+            const manual = document.getElementById('jam_kunjungan_manual');
+            const sebelumnya = this.jamKunjungan || manual.value;
+            const jadwal = this.jadwalAktif();
+            const terstruktur = !!(jadwal && jadwal.parseable && jadwal.slots.length);
+            sel.classList.toggle('hidden', !terstruktur);
+            manual.classList.toggle('hidden', terstruktur);
+            sel.toggleAttribute('required', terstruktur);
+            manual.toggleAttribute('required', !terstruktur && !!this.selectedDokterId);
+            if (terstruktur) {
+                sel.setAttribute('name', 'jam_kunjungan');
+                manual.removeAttribute('name');
+            } else {
+                manual.setAttribute('name', 'jam_kunjungan');
+                sel.removeAttribute('name');
+            }
+            if (!terstruktur) {
+                this.jamKunjungan = '';
+                return;
+            }
+            sel.innerHTML = '';
+            const slots = slotOptions(jadwal.slots);
+            sel.add(new Option('-- Pilih Jam Kunjungan --', ''));
+            for (const jam of slots) {
+                sel.add(new Option(`${jam} WIB`, jam));
+            }
+            this.jamKunjungan = slots.includes(sebelumnya) ? sebelumnya : '';
+            sel.value = this.jamKunjungan;
+        },
+
+        validasiTanggal() {
+            this.tglError = '';
+            if (!this.tglKunjungan || !this.selectedDokterId) {
+                return true;
+            }
+            const jadwal = this.jadwalAktif();
+            if (!jadwal || !jadwal.parseable || !jadwal.days.length) {
+                return true;
+            }
+            const hari = new Date(this.tglKunjungan + 'T00:00:00').getDay() || 7;
+            if (!jadwal.days.includes(hari)) {
+                const nama = jadwal.days.map(d => NAMA_HARI_JS[d]).join(', ');
+                this.tglError = `Dokter hanya praktik pada hari: ${nama}. Tanggal yang dipilih adalah hari ${NAMA_HARI_JS[hari]}.`;
+                return false;
+            }
+            return true;
         },
 
         updatePasienName(event) {
@@ -351,6 +450,7 @@ function createPendaftaranForm() {
             const opt = event.target.options[event.target.selectedIndex];
             this.dokterName = opt ? (opt.getAttribute('data-nama') || '') : '';
             this.dokterSpesialisasi = opt ? (opt.getAttribute('data-spesialisasi') || '') : '';
+            this.refreshJadwal();
         }
     };
 }
