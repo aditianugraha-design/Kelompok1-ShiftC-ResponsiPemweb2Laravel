@@ -4,12 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StorePasienRequest;
+use App\Http\Requests\UpdateMyProfileRequest;
 use App\Http\Requests\UpdatePasienRequest;
 use App\Http\Resources\PasienResource;
 use App\Models\Pasien;
 use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 
 class PasienController extends Controller
 {
@@ -55,7 +55,7 @@ class PasienController extends Controller
         return $this->success(new PasienResource($pasien));
     }
 
-    public function updateMyProfile(Request $request)
+    public function updateMyProfile(UpdateMyProfileRequest $request)
     {
         $pasien = $request->user()->pasien;
 
@@ -63,26 +63,7 @@ class PasienController extends Controller
             return $this->error('Profil pasien belum dilengkapi.', 404);
         }
 
-        $data = $request->validate([
-            'nik' => ['required', 'digits:16', Rule::unique('pasiens', 'nik')->ignore($pasien->id)],
-            'nama' => 'required|string|max:255',
-            'tgl_lahir' => 'required|date|before:today',
-            'jenis_kelamin' => 'required|in:L,P',
-            'alamat' => 'required|string',
-            'no_telp' => 'required|string|max:15',
-            'golongan_darah' => 'nullable|in:A,B,AB,O',
-        ], [
-            'nik.required' => 'NIK wajib diisi.',
-            'nik.digits' => 'NIK harus 16 digit.',
-            'nik.unique' => 'NIK sudah terdaftar.',
-            'nama.required' => 'Nama wajib diisi.',
-            'tgl_lahir.required' => 'Tanggal lahir wajib diisi.',
-            'jenis_kelamin.required' => 'Jenis kelamin wajib dipilih.',
-            'alamat.required' => 'Alamat wajib diisi.',
-            'no_telp.required' => 'No. telepon wajib diisi.',
-        ]);
-
-        $pasien->update($data);
+        $pasien->update($request->validated());
 
         return $this->success(new PasienResource($pasien), 'Profil pasien berhasil diperbarui');
     }

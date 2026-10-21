@@ -3,31 +3,26 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\LoginRequest;
+use App\Http\Requests\Api\RegisterRequest;
 use App\Models\User;
 use App\Traits\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
     use ApiResponse;
 
-    public function register(Request $request)
+    public function register(RegisterRequest $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'password' => 'required|min:8|confirmed',
-            'role' => 'nullable|in:admin,dokter,pasien',
-            'no_telp' => 'nullable|string|max:15',
-        ]);
+        $validated = $request->validated();
 
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
-            'role' => $validated['role'] ?? 'pasien',
+            'role' => 'pasien',
             'no_telp' => $validated['no_telp'] ?? null,
         ]);
 
@@ -40,19 +35,12 @@ class AuthController extends Controller
         ], 'Registrasi berhasil', 201);
     }
 
-    public function login(Request $request)
+    public function login(LoginRequest $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
-
         $user = User::where('email', $request->email)->first();
 
         if (! $user || ! Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['Kredensial tidak valid.'],
-            ]);
+            return $this->error('Kredensial tidak valid.', 401);
         }
 
         $token = $user->createToken('auth-token')->plainTextToken;
@@ -66,6 +54,7 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
+
         return $this->success(null, 'Logout berhasil');
     }
 
@@ -74,3 +63,4 @@ class AuthController extends Controller
         return $this->success($request->user()->load('roles'));
     }
 }
+
